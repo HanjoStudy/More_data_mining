@@ -1,0 +1,48 @@
+---
+title: "Data mining Course"
+author: "Hanjo Odendaal"
+date: "27 February 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Association Rules
+
+General Format is A -> C    
+
+Can generalize A (the antecedent) to a specific variable or value combination so can apply to various datasets
+
+__Search Heuristic__
+
+Basis of an association analysis algorithm is the generation of frequent itemsets. Is an "apriori algorithm", a generate-and-test type of search algorithm. Only after exploring all of the possibilities of associations containing k items does it consider those contining K + 1 items. For each k, all candidates are tested to determine whether they have enough support.
+
+A frequent itemset is a set of items that occur together frequently enough to be considered as a candidate for generating association rules.
+
+## 3 Measures: Support, Confidence, Lift
+
+__Support__ is a measure of how frequently the  items must appear in the whole dataset before  they can be considered as a candidate asso-  ciation rule.
+
+__Support__ for a collection of items is the proportion of all transactions in which the items appear together
+
+* support(A -> C) = P(A U C)
+
+We use small values of __support__ as are not looking for the obvious ones.  The actual association rules that we retain are those that meet a criterion __confidence__. 
+
+__Confidence__ calculates the proportion of transactions containing A that also contain C.
+
+* confidence(A -> C) = P(C|A) = P(A U C)/P(A)
+
+* confidence(A -> C) = support(A -> C)/support(A)
+
+Typically looking for larger values of confidence
+
+__Lift__ is the increased likelihood of C being in a transaction if A is included in the transaction:
+
+* lift(A -> C) = confidence(A -> C)/support(C)
+
+Another measure: __Leverage__, which captures the fact that a higher frequency of A and C with a lower lift may be interesting:
+
+* leverage(A->C) = support(A->C)-support(A) \* support(C)
