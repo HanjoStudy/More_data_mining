@@ -8,7 +8,7 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(rmsfuns)
-load_pkg(c('dplyr', 'arules', "arulesViz"))
+load_pkg(c('purrr', 'dplyr', 'arules', "arulesViz"))
 ```
 
 # Association Rules
@@ -268,4 +268,39 @@ rules %>%
        shading="order", 
        control=list(main="Two-key plot"))
 ```
+
+## Last FM example
+
+### Add All reading from ledolter here
+
+```{r}
+lastfm <- read.csv("Materials-Session-3-More-Association-Analysis/data/lastfm.csv") %>% 
+  distinct(., .keep_all = T)
+```
+
+Lets use this to now create a playlist for each of the people and get unique records. We must remember that apriori can only handle `factors`
+```{r}
+
+playlist <- 
+  lastfm %>% 
+  mutate(user = factor(user)) %>% 
+  split_by("user") %>% 
+  map(~ distinct(.x))
+
+playlist <- split(x=lastfm[,"artist"], f=lastfm$user)
+playlist <- lapply(playlist,unique) 
+```
+
+Lets look at the first two users and the music they listen to:
+```{r}
+playlist[c(1,2)]
+```
+
+The cool thing about apriori and `arules` is the fact that it can create a transaction matrix from my list of users and they wine they enjoy
+```{r}
+playlist <- as(playlist,"transactions")
+```
+
+
+
 
