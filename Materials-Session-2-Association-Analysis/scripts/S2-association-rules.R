@@ -176,7 +176,7 @@ inspect(rules.sorted)
 # Support, confidence and lift are three common measures
 # for selecting interesting association rules. Besides them, 
 # there are many other interestingness measures, 
-# such as chi-square, conviction,gini and leverage.
+# such as chi-square, conviction, gini and leverage.
 
 # More than 20 measures can be calculated with 
 # function interestMeasure() in the arules package.

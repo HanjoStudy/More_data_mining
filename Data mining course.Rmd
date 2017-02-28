@@ -7,6 +7,8 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(rmsfuns)
+load_pkg(c('dplyr', 'arules'))
 ```
 
 # Association Rules
@@ -46,3 +48,127 @@ __Lift__ is the increased likelihood of C being in a transaction if A is include
 Another measure: __Leverage__, which captures the fact that a higher frequency of A and C with a lower lift may be interesting:
 
 * leverage(A->C) = support(A->C)-support(A) \* support(C)
+
+## Titanic dataset
+
+```{r}
+data("Titanic")
+df <- as.data.frame(Titanic)
+
+# make new object to hold data
+titanic.raw <- NULL
+
+# restructure it as a character matrix
+for(i in 1:4) {
+   titanic.raw <- cbind(titanic.raw, rep(as.character(df[,i]), df$Freq))
+}
+
+titanic.raw <- as.data.frame(titanic.raw)
+names(titanic.raw) <- names(df)[1:4]
+
+rules.all <- apriori(titanic.raw)
+
+rules.all
+
+inspect(rules.all)
+```
+
+As a common phenomenon for association rule mining, many rules generated above are uninteresting. Suppose that we are interested in only rules with rhs indicating survival, so we set rhs=c("Survived=No", "Survived=Yes") in appearance to make sure that only "Survived=No" and "Survived=Yes" will appear in the rhs of rules. All other items can appear in the lhs, as set with default="lhs". 
+
+In the above result rules.all, we can also see that the left-hand side (lhs) of the first rule is empty. To exclude such rules, we set minlen to 2 in the code below. Moreover, the details of the progress are suppressed with verbose=F. 
+
+After association rule mining, rules are sorted by lift to make high-lift rules appear first.
+
+```{r}
+rules <- apriori(titanic.raw, control = list(verbose=F),
+                 parameter = list(minlen=2, supp=0.005, conf=0.8),
+                 appearance = list(rhs=c("Survived=No", 
+                                         "Survived=Yes"),
+                                   default="lhs"))
+
+quality(rules) <- round(quality(rules), digits=3)
+rules.sorted <- sort(rules, by="lift")
+
+inspect(rules.sorted)
+```
+
+When other settings are unchanged, with a lower minimum support, more rules will be produced, and the associations between itemsets shown in the rules will be more likely to be by chance. In the above code, the minimum support is set to 0.005, so each rule is supported at least by 12 (=ceiling(0.005 * 2201)) cases, which is acceptable for a population of 2201. 
+
+__Support__, __confidence__ and __lift__ are three common measures for selecting interesting association rules. Besides them, there are many other interestingness measures, such as 
+* chi-square
+* conviction
+* gini
+* leverage
+
+More than 20 measures can be calculated with function `interestMeasure()` in the arules package.
+
+```{r}
+interestMeasure(rules.sorted,  transactions = titanic.raw)
+
+quality(rules) <- 
+  interestMeasure(rules.sorted,  transactions = titanic.raw)
+
+data("Income")
+rules <- apriori(Income)
+
+## calculate a single measure and add it to the quality slot
+quality(rules) <- cbind(quality(rules), 
+                        hyperConfidence = interestMeasure(rules, measure = "hyperConfidence", 
+                                                          transactions = Income))
+
+inspect(head(rules, by = "hyperConfidence"))
+```
+
+Some rules generated in the previous section (see rules.sorted, page 89) provide little or no extra information when some other rules are in the result. 
+
+For example, the above rule 2 provides no extra knowledge in addition to rule 1, since rules 1 tells us that all 2nd-class children survived.  Generally speaking, when a rule (such as rule 2) is a super rule of another rule (such as rule 1) and the former has the same or a lower lift, the former rule (rule 2) is considered to be redundant.  Other redundant rules in the above result are rules 4, 7 and 8, compared respectively with rules 3, 6 and 5. 
+
+Below we prune redundant rules. Note that the rules have already been sorted descendingly by lift.
+
+To sum up redundancy, if we see that the confidence of Class = 1st, Sex = Female is 1, then by adding if its an adult or an infant does not matter as it does not add information
+
+```{r}
+### Just make 
+prune_arule <- function(rules, verbose = T) {
+  
+  rules <- sort(rules, by="lift")
+  subset.matrix <- is.subset(rules.sorted, rules.sorted)
+  subset.matrix[lower.tri(subset.matrix, diag = T)] <- NA
+  redundant <- colSums(subset.matrix, na.rm = T) >= 1
+  if(verbose)
+  cat("Removing rules:\n", 
+      which(redundant), "\n",
+      paste(names(which(redundant)),"\n"))
+  
+  rules[!redundant]
+}
+
+rules.pruned <- prune_arule(rules)
+
+inspect(rules.pruned)
+```
+
+__While it is easy to find high-lift rules from data, it is not an easy job to understand the identified rules__. It is not uncommon that the association rules are misinterpreted to find their business meanings.  
+
+For instance, in the above rule list `rules.pruned`, the first rule `{Class=2nd, Age=Child} => {Survived=Yes}` has a confidence of one and a lift of three and there are no rules on children of the 1st or 3rd classes. Therefore, it might be interpreted by users as children of the 2nd class had a higher survival rate than other children. __This is wrong!__ 
+
+* The rule states only that all children of class 2 survived, but provides no information at all to compare the survival rates of different classes. 
+
+To investigate the above issue, we run the code below to find rules whose rhs is `Survived=Yes` and lhs contains `Class=1st`, `Class=2nd`, `Class=3rd`, `Age=Child` and `Age=Adult` only, and which contains no other items (default=`none`). We use lower thresholds for both support and confidence than before to find all rules for children of different classes.
+
+* Remember to also change `supp` and `conf` as we work with different samples in the data
+
+```{r}
+rules <- apriori(titanic.raw, 
+                 parameter = list(minlen=3, supp=0.002, conf=0.2),
+                 appearance = list(rhs=c("Survived=Yes"),
+                                   lhs=c("Class=1st", "Class=2nd", "Class=3rd",
+                                         "Age=Child", "Age=Adult"),
+                                   default="none"), 
+                 control = list(verbose=F))
+
+rules.sorted <- sort(rules, by="confidence")
+
+inspect(rules.sorted)
+```
+
