@@ -8,7 +8,7 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(rmsfuns)
-load_pkg(c('dplyr', 'arules'))
+load_pkg(c('dplyr', 'arules', "arulesViz"))
 ```
 
 # Association Rules
@@ -157,8 +157,12 @@ For instance, in the above rule list `rules.pruned`, the first rule `{Class=2nd,
 To investigate the above issue, we run the code below to find rules whose rhs is `Survived=Yes` and lhs contains `Class=1st`, `Class=2nd`, `Class=3rd`, `Age=Child` and `Age=Adult` only, and which contains no other items (default=`none`). We use lower thresholds for both support and confidence than before to find all rules for children of different classes.
 
 * Remember to also change `supp` and `conf` as we work with different samples in the data
+* This will give us a much clearer view of the proportional survival rates between classes
 
 ```{r}
+# create a function to run a truncated apriori - work out supp and conf - input list of rhs and lhs variables
+# function(trunc_list, supp, conf)
+
 rules <- apriori(titanic.raw, 
                  parameter = list(minlen=3, supp=0.002, conf=0.2),
                  appearance = list(rhs=c("Survived=Yes"),
@@ -167,8 +171,101 @@ rules <- apriori(titanic.raw,
                                    default="none"), 
                  control = list(verbose=F))
 
-rules.sorted <- sort(rules, by="confidence")
+rules.sorted <- rules %>% sort(by="confidence")
 
 inspect(rules.sorted)
+```
+
+# Visualizing arules
+
+Here we show some ways to visualize association rules, including scatter plot, balloon plot, graph and parallel coordinates plot. More examples on visualizing association rules can be found in the vignettes of package arulesViz [Hahsler and Chelluboina, 2012] which is included in your folder of class materials for today.
+
+```{r}
+library(arulesViz)
+
+# figure 9.1 in PDF
+plot(rules.all) 
+
+# figure 9.2 in PDF
+plot(rules.all, method="grouped")
+
+# figure 9.3 in PDF
+plot(rules.all, method="graph")
+
+# figure 9.4
+plot(rules.all, method="graph", control=list(type="items"))
+
+# figure 9.5
+plot(rules.all, method="paracoord", control=list(reorder=TRUE))
+
+
+plot(rules.all, 
+     method = "matrix", 
+     measure = c("lift", "confidence"), 
+     control = list(reorder=TRUE))
+
+plot(rules, 
+     method = "matrix3D", 
+     measure = "lift", 
+     control = list(reorder=TRUE))
+```
+
+## Groceries
+
+```{r}
+# Groceries contains sales data of groceries
+# with 9835 transactions and 169 items.
+data("Groceries")
+summary(Groceries)
+
+# Whole milk most popular. Average transaction
+# has less than 5 items.
+
+# We mine association rules using
+# Apriori algorithm implemented in arules
+
+rules <- apriori(Groceries,
+                 parameter=list(support=0.001,
+                                confidence=0.5))
+
+rules %>% 
+  sort(by = "lift") %>% 
+  head(3) %>% 
+  inspect
+```
+
+Here we see that when people buy `Instant food products, soda`, it is ~19 more likely (`lift`) on average that they will buy `hamburger meat`
+
+Generic Plot Syntax is:
+```{r}
+plot(x, method = NULL, measure = "support",
+            shading = "lift", interactive = FALSE,
+            data = data_set, control = list(reorder=TRUE))
+```
+
+* x = set of rules to be visualized
+* method = visualization method
+* measure and shading = interest measures for plot
+* interactive = if we want to interactively explore or just present the rules
+* data = transaction data set used to mine rules control = list with further control arguments.
+
+```{r}
+plot(rules)
+
+rules %>% quality %>% head
+
+rules %>% 
+  plot(., 
+     measure=c("support", "lift"), 
+     shading="confidence")
+```
+
+In a "two-key plot", support and confidence are used for the x and y-axes and the color of the points is used to indicate "order" which is the number of items contained in the rule.
+
+```{r}
+rules %>% 
+  plot(., 
+       shading="order", 
+       control=list(main="Two-key plot"))
 ```
 
