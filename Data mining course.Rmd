@@ -210,7 +210,7 @@ plot(rules,
      control = list(reorder=TRUE))
 ```
 
-## Groceries
+## Groceries Example
 
 ```{r}
 # Groceries contains sales data of groceries
@@ -271,7 +271,40 @@ rules %>%
 
 ## Last FM example
 
-### Add All reading from ledolter here
+We look for association rules such as: A = LHS  (buy chips) → B = RHS (buy beer). 
+
+* The left-hand side is the `antecedent`
+* the right-hand side is the `consequent`
+
+P(B|A) is the conditional probability of B given A. It expresses the probability of event B (the RHS: buying beer), knowing that event A (the LHS: buying chips) has occurred. Recall from your study of probability that P(B|A) = P(A and B)/P(A).
+
+___SUPPORT:___
+
+P(A): Probability that product A is being purchased (event A)—The proportion of times event A occurred is also referred to as the support of A. It is the relative frequency of 1s in column A of the incidence matrix.
+
+P(B): Probability that product B is being purchased (event B)—The proportion of times event B occurred is referred to as the support of B. It is the relative frequency of 1s in column B of the incidence matrix
+
+P(A and B): Probability that products A and B are being purchased at the same time—The proportion of times events A and B occurred together is referred to as the support of A and B. It is the relative frequency of having 1s (i.e., of co-incidence) in both columns A and B of the incidence matrix.
+
+___CONFIDENCE:___
+
+The conditional probability of B (RHS) given A (LHS) is referred to as the confidence of B. It expresses our confidence that product B gets bought if A has been purchased. If this is a small number, the relationship between antecedent A and consequent B is not very relevant as in this case B is unlikely to occur. The confidence is calculated as the ratio, supp(A = LHS and B = RHS)/supp(A = LHS), with the supports of these two events being obtained from the incidence matrix.
+
+___LIFT:___
+
+The lift of A on B is defined as the ratio: 
+
+* lift(A → B) = P(B|A) / P(B) = P(A and B) / P(A)P(B). 
+
+It compares P(B|A) with P(B). If this ratio is larger than 1, we say that A (LHS) results in an upward lift on B (RHS). Or, knowing that A (the antecedent) has occurred, increases the chance that B (the consequent) occurs. 
+
+The lift of A (LHS) on B (RHS) is calculated as the ratio supp(LHS and RHS)/[supp(LHS)supp(RHS)]. Note that this is the same as the lift of B on A:
+
+* P(A|B)/P(A) = P(A and B)/P(A)P(B).
+
+### Balance between lift and confidence
+
+You want to find antecedents that result in big lifts. But, big lifts are practically relevant only if the consequent has a reasonable chance of occurring. Hence, it is productive to screen for combinations that result in good lift AND high confidence.
 
 ```{r}
 lastfm <- read.csv("Materials-Session-3-More-Association-Analysis/data/lastfm.csv") %>% 
@@ -301,6 +334,92 @@ The cool thing about apriori and `arules` is the fact that it can create a trans
 playlist <- as(playlist,"transactions")
 ```
 
+```{r}
+itemFrequency(playlist)
+
+itemFrequencyPlot(playlist, support = 0.08, cex.names = 1.5)
+
+```
+
+Lets only get build the priori rule so that only rules with support >0.01 and confidence of > 0.50 exists, so we don't have a super rare band that had a one hit wonder
+
+```{r}
+musicrules <- apriori(playlist,
+                      parameter=list(support=.01,confidence=.5)) 
+
+inspect(musicrules)
+```
 
 
+Filter then only those who had a lift of > 5
+
+```{r}
+inspect(subset(musicrules, subset=lift > 5)) 
+
+inspect(sort(subset(musicrules, subset=lift > 5), 
+             by="confidence"))
+```
+
+Here we see that if we were to recommend pink floyd to those who listen to led zeppelin and the doors, then we would be correct 60% of the time
+
+## Income Example
+
+As second example we use the Adult data set from the UCI machine learning repository; 
+
+This data set was analyzed by Hahsler et al. (2005) in their illustration of the R package arules. The data, taken from the US Census Bureau database, contains 48,842 individuals with data on income and several possible predictors of income such as age, work class, education, and so on. 
+
+The first part of the R program in their paper (copied below) transforms the original variables into 115 binary indicator variables. Income, for example is coded as “small” (US$50,000 or less) and “large” (US$50,000 or more). We skip these details and focus our attention on the resulting transaction (incidence) matrix Adult with its 48,842 rows and 15 columns. Since the dimensions of the matrix are so large, the matrix is stored in a special, sparse, transaction matrix format. The item (column) with the largest number of 1s is “capital − loss = none” (46,560 out of 48,842). The number of 1s on a subject (also referred to as the length) varies between 9 and 13; this narrow band is not surprising as indicator variables were constructed from categorical variables, and we know that summing over indicators of each categorical variable must give one for every subject. But, it is the way how these 0s and 1s coincide that matters. We get a better understanding of how the strings of zeros and ones look like by considering the incidence matrix (which we create from the transaction matrix). The indicator for small income (0/1) is in the penultimat column; the indicator for large income is in the very last column.
+
+```{r}
+
+data(AdultUCI)
+
+# look at first three rows
+AdultUCI[1:3,]
+
+# remove columns we do not need
+AdultUCI <- AdultUCI %>% 
+  select(-c(fnlwgt, `education-num`))
+
+# AdultUCI[["fnlwgt"]] <- NULL
+# AdultUCI[["education-num"]] <- NULL
+
+
+AdultUCI[["age"]] <- 
+  ordered(cut(AdultUCI[["age"]], 
+              c(15, 25, 45, 65, 100)), 
+          labels = c("Young", "Middle-aged", "Senior", "Old"))
+
+AdultUCI[["hours-per-week"]] <- 
+  ordered(cut(AdultUCI[["hours-per-week"]], 
+              c(0, 25, 40, 60, 168)), 
+          labels = c("Part-time", "Full-time", "Over-time", "Workaholic"))
+
+AdultUCI[["capital-gain"]] <- 
+  ordered(cut(AdultUCI[["capital-gain"]], 
+              c(-Inf, 0, median(AdultUCI[["capital-gain"]][AdultUCI[["capital-gain"]] > 0]), Inf)), 
+          labels = c("None", "Low", "High"))
+
+AdultUCI[["capital-loss"]] <- 
+  ordered(cut(AdultUCI[["capital-loss"]], 
+              c(-Inf, 0, median(AdultUCI[["capital-loss"]][AdultUCI[["capital-loss"]] > 0]), Inf)), 
+          labels = c("none", "low", "high"))
+```
+
+Lets transform this data into a sparse matrix and then into incidence matrix
+
+```{r}
+# make it a sparse format
+Adult <- as(AdultUCI, "transactions")
+Adult
+summary(Adult)
+
+# transforms transaction matrix into incidence matrix
+aa <- as(Adult,"matrix") 
+
+# print the first two rows of the incidence matrix
+aa[1:2,]
+# look at frequencies of items
+itemFrequencyPlot(Adult[, itemFrequency(Adult) > 0.2], cex.names = 1)
+```
 
