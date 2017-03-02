@@ -8,7 +8,7 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(rmsfuns)
-load_pkg(c('purrr', 'dplyr', 'arules', "arulesViz"))
+load_pkg(c('purrr', 'dplyr', 'arules', "arulesViz", "igraph"))
 ```
 
 # Association Rules
@@ -368,7 +368,9 @@ As second example we use the Adult data set from the UCI machine learning reposi
 
 This data set was analyzed by Hahsler et al. (2005) in their illustration of the R package arules. The data, taken from the US Census Bureau database, contains 48,842 individuals with data on income and several possible predictors of income such as age, work class, education, and so on. 
 
-The first part of the R program in their paper (copied below) transforms the original variables into 115 binary indicator variables. Income, for example is coded as “small” (US$50,000 or less) and “large” (US$50,000 or more). We skip these details and focus our attention on the resulting transaction (incidence) matrix Adult with its 48,842 rows and 15 columns. Since the dimensions of the matrix are so large, the matrix is stored in a special, sparse, transaction matrix format. The item (column) with the largest number of 1s is “capital − loss = none” (46,560 out of 48,842). The number of 1s on a subject (also referred to as the length) varies between 9 and 13; this narrow band is not surprising as indicator variables were constructed from categorical variables, and we know that summing over indicators of each categorical variable must give one for every subject. But, it is the way how these 0s and 1s coincide that matters. We get a better understanding of how the strings of zeros and ones look like by considering the incidence matrix (which we create from the transaction matrix). The indicator for small income (0/1) is in the penultimat column; the indicator for large income is in the very last column.
+The first part of the R program in their paper (copied below) transforms the original variables into 115 binary indicator variables. Income, for example is coded as "small" (US$50,000 or less) and "large" (US$50,000 or more). We skip these details and focus our attention on the resulting transaction (incidence) matrix Adult with its 48,842 rows and 115 columns. Since the dimensions of the matrix are so large, the matrix is stored in a special, sparse, transaction matrix format. The item (column) with the largest number of 1s is "capital − loss = none" (46,560 out of 48,842). The number of 1s on a subject (also referred to as the length) varies between 9 and 13; this narrow band is not surprising as indicator variables were constructed from categorical variables, and we know that summing over indicators of each categorical variable must give one for every subject. But, it is the way how these 0s and 1s coincide that matters. We get a better understanding of how the strings of zeros and ones look like by considering the incidence matrix (which we create from the transaction matrix). The indicator for small income (0/1) is in the penultimat column; the indicator for large income is in the very last column.
+
+__NOTE__ the awesome ordered variable
 
 ```{r}
 
@@ -421,5 +423,186 @@ aa <- as(Adult,"matrix")
 aa[1:2,]
 # look at frequencies of items
 itemFrequencyPlot(Adult[, itemFrequency(Adult) > 0.2], cex.names = 1)
+```
+
+Now that we have the sparse matrix, lets run the apriori algorithm
+
+```{r}
+rules <- apriori(Adult, 
+                 parameter = list(support = 0.01, 
+                                  confidence = 0.6))
+# how many of them?
+rules
+# summary of rules
+summary(rules)
+```
+
+Finally, we search over a subset of all rules (with support greater than 0.01 and confidence greater than 0.60, as specified previously) that have small income on the RHS and achieve a lift larger than 1.2. 
+
+```{r}
+rulesIncomeSmall <- subset(rules, subset = rhs %in% "income=small" & lift > 1.2)
+inspect(sort(rulesIncomeSmall, by = "confidence")[1:3])
+
+rulesIncomeLarge <- subset(rules, subset = rhs %in% "income=large" & lift > 1.2)
+inspect(sort(rulesIncomeLarge, by = "confidence")[1:3])
+```
+
+
+### How to sample
+
+To calculate a reasonable sample size n, we choose a minimum support of 5% tied into the formula you see below. As an acceptable error rate for support we choose 10% and as the confidence level (1 − c) we choose 90%.
+
+```{r}
+supp <- 0.05
+epsilon <- 0.1
+c <- 0.1
+n <- -2 * log(c)/ (supp * epsilon^2)
+n
+```
+
+# Social network analysis
+```{r}
+g <- graph(c(1,2, 1,3, 2,3, 3,5), n=5)
+# and then plot it
+plot(g)
+```
+
+We are assigning to the variable g a graph that has nodes 
+
+* V = {1,2,3,4,5} (from n=5) and has edges 
+* E = {(1,2), (1,3), (2,3), (3,5)} 
+
+The commands `V(g)` and `E(g)` print the list of nodes and edges of the graph g:
+
+```{r}
+
+# vertex sequence:
+V(g)
+
+# edge sequence
+E(g)
+
+```
+
+```{r}
+# You can add nodes and edges to an already
+# existing graph by, for example, doing this:
+g <- graph.empty() + vertices(letters[1:10], 
+                              color="red")
+# it creates an empty graph and then adds vertices.
+# take a look:
+plot(g)
+# we add more:
+g <- g + vertices(letters[11:20], 
+                  color="blue")
+# take a look:
+plot(g)
+# We add edges sampling from the existing
+# edges in g:
+g <- g + edges(sample(V(g), 30, replace=TRUE), 
+               color="green")
+# Take a look:
+plot(g)
+
+# resulting Vertex sequence:
+V(g)
+
+# resulting Edge sequence
+E(g)
+```
+
+
+## Loading graphs & GRAPH GENERATORS
+
+Lets load in a "pajek" graph type - they are made for very large graphic networks
+
+```{r}
+karate <- read.graph("http://cneurocvs.rmki.kfki.hu/igraph/karate.net", format = "pajek")
+plot(karate)
+```
+
+igraph implements also many useful graph generators. There are models such as: 
+
+* Edos-Renyi model (ER)
+* Barabasi-Albert model (BA)
+* Watts-Strogratz model (WS). 
+
+The following commands generate graphs using these models:
+
+```{r}
+er_graph <- erdos.renyi.game(100, 2/100)
+plot(er_graph)
+ws_graph <- watts.strogatz.game(1, 100, 4, 0.05)
+plot(ws_graph)
+ba_graph <- barabasi.game(100)
+plot(ba_graph)
+
+```
+
+We can add attributes to nodes and edges of the graphs. These are useful for selecting certain types of nodes, and for visualization. What these commands do is to generate a random graph with 10 nodes, assigns random colors to the nodes, colors edges joining red nodes in red, and edges joining black nodes in black. All remaining edges are colored grey.
+
+```{r}
+g <- erdos.renyi.game(10, 0.5)
+plot(g)
+# assigns random colors to nodes
+V(g)$color <- sample( c("red", "black"), vcount(g), rep=TRUE)
+plot(g)
+
+# assign grey to the edges
+E(g)$color <- "grey"
+plot(g)
+
+# identify red vertices as variable "red"
+red <- V(g)[ color == "red" ]
+# no changes:
+plot(g)
+
+# identify black vertices as variable "bl"
+bl <- V(g)[ color == "black" ]
+# no changes:
+plot(g)
+
+# make edges for red nodes red:
+E(g)[ red %--% red ]$color <- "red"
+
+# make edges for black nodes black:
+E(g)[ bl %--% bl ]$color <- "black"
+
+# remaining edges are still grey:
+plot(g)
+```
+
+What the following set of commands do is this: They assign random weights to a lattice graph and then colors the ones having weight over 0.9 red, and the rest grey.
+
+```{r}
+g <- graph.lattice( c(10,10) )
+# graph that looks like a lattice:
+plot(g)
+# assign random weights:
+E(g)$weight <- runif(ecount(g))
+# color all edges grey:
+E(g)$color <- "grey"
+# plot g:
+plot(g)
+# color it red if weight > 0.9:
+E(g)[ weight > 0.9 ]$color <- "red"
+# show g:
+plot(g)
+
+```
+
+A very important part in the analysis of networks is being able to visualize them As an example, consider the following commands which render the three graphs depicted below:
+
+```{r}
+er_graph <- erdos.renyi.game(100, 2/100)
+plot(er_graph, vertex.label=NA, vertex.size=3)
+
+ws_graph <- watts.strogatz.game(1, 100, 4, 0.05)
+plot(ws_graph, layout=layout.circle, 
+     vertex.label=NA, vertex.size=3)
+
+ba_graph <- barabasi.game(100)
+plot(ba_graph, vertex.label=NA, vertex.size=3)
+
 ```
 
