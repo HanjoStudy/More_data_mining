@@ -19,7 +19,14 @@ Can generalize A (the antecedent) to a specific variable or value combination so
 
 __Search Heuristic__
 
-Basis of an association analysis algorithm is the generation of frequent itemsets. Is an "apriori algorithm", a generate-and-test type of search algorithm. Only after exploring all of the possibilities of associations containing k items does it consider those contining K + 1 items. For each k, all candidates are tested to determine whether they have enough support.
+Basis of an association analysis algorithm is the generation of frequent itemsets. Is an "apriori algorithm", a generate-and-test type of search algorithm. Only after exploring all of the possibilities of associations
+
+* containing k items does it consider those contining K + 1 items. Foreach
+```{r}
+
+```
+
+k, all candidates are tested to determine whether they have enough support.
 
 A frequent itemset is a set of items that occur together frequently enough to be considered as a candidate for generating association rules.
 
@@ -604,5 +611,380 @@ plot(ws_graph, layout=layout.circle,
 ba_graph <- barabasi.game(100)
 plot(ba_graph, vertex.label=NA, vertex.size=3)
 
+help(igraph.plotting)
+```
+
+```{r}
+# As another example, consider adding attributes
+# to edges for a nicer visualization:
+
+# create a lattice graph:
+g <- graph.lattice( c(10,10) )
+# show it:
+plot(g)
+
+E(g)$weight <- runif(ecount(g))
+plot(g)
+
+E(g)$color <- "grey"
+plot(g)
+
+E(g)[ weight > 0.9 ]$color <- "red"
+plot(g)
+# changes the layout; the intersections
+# are now the nodes:
+plot(g, vertex.size = 2 , vertex.label=NA, 
+     layout = layout.kamada.kawai ,
+     edge.width=2 + 3*E(g)$weight)
+
+```
+
+## MEASURING GRAPHS
+
+There are many measures that help us understand and characterize networks. 
+Some are diameter (and average path length), clustering coefficient (or transitivity), and degree distribution. 
+
+igraph provides functions that compute these measures for you. The functions are: 
+
+* `diameter()`
+* `transitivity()`
+* `average.path.length()`
+* `degree()`
+* `degree.distribution()` 
+
+```{r}
+?transitivity
+?degree
+?degree.distribution
+
+g <- graph.lattice(length=100, dim=1, nei=4)
+plot(g)
+average.path.length(g)
+
+diameter(g)
+
+g <- rewire.edges( g, prob=0.05 )
+plot(g)
+average.path.length(g)
+
+diameter(g)
+
+# for transitivity():
+ws <- watts.strogatz.game(1, 100, 4, 0.05)
+transitivity(ws)
+plot(ws)
+
+p_hat <- ecount(ws)/(vcount(ws)*(vcount(ws))/2)
+p_hat
+
+er <- erdos.renyi.game(100, p_hat)
+plot(er)
+transitivity(er)
+
+
+# For degree() and degree.distribution():
+g <- graph.ring(10)
+plot(g)
+degree(g)
+
+ba <- barabasi.game(10000, m=3)
+p_hat <- ecount(ba)/ ((vcount(ba)-1)*vcount(ba)/2)
+er <- erdos.renyi.game(10000, p_hat)
+degree.distribution(er)
+
+g <- make_ring(10)
+degree(g)
+plot(g)
+g2 <- sample_gnp(1000, 10/1000)
+plot(g2)
+degree_distribution(g2)
+
+# Erdos-Renyi:
+hist(degree(er))
+
+# Barabasi-Albert:
+hist(degree(ba))
+
+# Erdos-Renyi:
+plot(degree.distribution(er))
+
+# Barabasi-Albert:
+plot(degree.distribution(ba))
+
+
+```
+
+## A SECOND SET OF igraph DEMOS
+
+Data format. The data is in 'edges' format meaning that each row records a relationship (edge) between two people (vertices).
+
+Additional attributes can be included. Here is an example:
+
+ Supervisor	Examiner	Grade	Specialization
+         AA		    BD		  6	             X	
+         BD		    CA		  8	             Y
+         AA		    DE		  7	             Y
+...		...		...	...
+In this anonymized example, we have data on co-supervision with additional information about grades and specialization. 
+
+It is also possible to have the data in a matrix form (see the igraph documentation for details)
+
+```{r}
+# Load the data. The data needs to be loaded as a table first: 
+bsk <- read.table("http://www.dimiter.eu/Data_files/edgesdata3.txt",
+                  sep='\t',
+                  dec=',', 
+                  header=T)
+#specify the path, separator(tab, comma, ...), decimal point symbol, etc.
+```
+
+Transform the table into the required graph format:
+
+* the 'directed' attribute specifies whether the edges are directed
+```{r}
+bsk.network <- graph.data.frame(bsk, directed=F) 
+
+plot(bsk.network)
+# prints the list of vertices (people)
+V(bsk.network) 
+# prints the list of edges (relationships)
+E(bsk.network) 
+# print the number of edges per vertex 
+# (relationships per people)
+degree(bsk.network) 
+
+```
+
+Subset the data. If we want to exclude people who are in the network only tangentially (participate in one or two relationships only) we can exclude them by subsetting the graph on the basis of the 'degree':
+
+```{r}
+# identify those vertices part of less than three edges
+bad.vs <- V(bsk.network)[degree(bsk.network)<3]
+# exclude them from the graph
+bsk.network <- delete.vertices(bsk.network, bad.vs) 
+
+# Plot the data:
+plot(bsk.network)
+```
+
+Some details about the graph can be specified in advance. For example we can separate some vertices (people) by color:  
+
+* useful for highlighting certain people. Works by matching the name attribute of the vertex to the one specified in the 'ifelse' expression. If name is 'CA'they are colored blue, otherwise red
+
+```{r}
+V(bsk.network)$color <- ifelse(V(bsk.network)$name=='CA', 'blue', 'red') 
+plot(bsk.network)
+
+# We can also color the connecting edges differently
+# depending on the 'grade': 
+E(bsk.network)$color<-ifelse(E(bsk.network)$grade==9, "red", "grey")
+plot(bsk.network)
+
+# or depending on the different specialization ('spec'):
+E(bsk.network)$color<-ifelse(E(bsk.network)$spec=='X', "red", ifelse(E(bsk.network)$spec=='Y', "blue", "grey"))
+plot(bsk.network)
+
+# Getting the right scale gets some playing around 
+# with the parameters of the scale function 
+# (from the 'base' package):
+V(bsk.network)$size<-degree(bsk.network)/10
+plot(bsk.network)
+
+```
+
+And the final plot: This specifies the size of the margins. The default settings leave too much free space on all sides (if no axes are printed)
+
+```{r}
+
+par(mai=c(0,0,1,0)) 
+
+# here is the graph to be plotted:
+plot(bsk.network,
+     # the layout method
+     # see the igraph documentation for details
+     layout = layout.fruchterman.reingold,
+     # specifies the title
+     main = 'Organizational network example',
+     # puts the name labels slightly off the dots
+     vertex.label.dist = 0.5,	
+     # the color of the border of the dots 
+     vertex.frame.color = 'blue',
+     # the color of the name labels
+     vertex.label.color = 'black',		
+     # the font of the name labels
+     vertex.label.font = 2,
+     # specifies the lables of the vertices. 
+     # in this case the 'name' attribute is used
+     vertex.label = V(bsk.network)$name,
+     # specifies size of the font of the labels. 
+     # can also be made to vary
+     vertex.label.cex = 1			
+)
+
+```
+
+## Twitter example
+
+We first build a network of terms based on their co-occurrence in the same tweets, and then build a network of tweets based on the terms shared by them. And lastly, we build a two-mode network composed of both terms and tweets. We also demonstrate some tricks to plot nice network graphs. 
+
+```{r}
+# free memory
+rm(list = ls())
+gc()
+```
+
+At first, a term-document matrix, termDocMatrix.rdata, is loaded into R. After that, it is transformed into a term-term adjacency matrix, based on which a graph is built. Then we plot the graph to show the relationshipbetween frequent terms, and also make the graph more readable by setting colors, font sizes and transparency of vertices and edges.
+
+```{r}
+load("Materials-Session-4-Social-Network-Analysis-I-Graph-Visualizations/Data Objects/rdmTweets.RData")
+load("Materials-Session-4-Social-Network-Analysis-I-Graph-Visualizations/Data Objects/termDocMatrix.rdata")
+
+# inspect part of the matrix
+termDocMatrix[5:10,1:20]
+
+# change it to a Boolean matrix
+termDocMatrix[termDocMatrix >= 1] <- 1
+termDocMatrix[5:10, 1:20]
+
+```
+
+%*% is an operator for the product of two matrices, and t() transposes amatrix. Here we build a term-term adjacency matrix, where the rows and columns represent terms, and every entry is the number of concurrences of two terms.
+
+This will help us see when one word is used with another
+
+```{r}
+# transform into a term-term adjacency matrix
+termMatrix <- termDocMatrix %*% t(termDocMatrix)
+
+# inspect terms numbered 5 to 10
+termMatrix[5:10,5:10]
+
+# build a graph from the above matrix
+g <- graph.adjacency(termMatrix, weighted = T, mode = "undirected")
+plot(g)
+
+# remove loops
+g <- simplify(g)
+plot(g)
+
+# set labels and degrees of vertices
+V(g)$label <- V(g)$name
+V(g)$degree <- degree(g)
+V(g)
+plot(g)
+
+```
+
+After that, we plot the network with layout.fruchterman.reingold
+
+```{r}
+# set seed to make the layout reproducible
+set.seed(3952)
+layout1 <- layout.fruchterman.reingold(g)
+plot(g, layout = layout1)
+
+plot(g, layout = layout.kamada.kawai)
+#tkplot(g, layout = layout.kamada.kawai)
+
+
+# Next, we set the label size of vertices based on 
+# their degrees, to make important terms stand out.
+V(g)$label.cex <- 2.2 * V(g)$degree / max(V(g)$degree)+ .2
+plot(g)
+
+# Function rgb(red, green, blue, alpha) defines a color,
+# with an alpha transparency.
+V(g)$label.cex <- 2.2 * V(g)$degree / max(V(g)$degree)+ .2
+V(g)$label.color <- rgb(0, 0, .2, .8)
+V(g)$frame.color <- NA
+plot(g)
+
+# We also set the width and transparency of edges 
+# based on their weights. This is useful in applications
+# where graphs are crowded with many vertices and edges. 
+
+egam <- (log(E(g)$weight)+.4) / max(log(E(g)$weight)+.4)
+E(g)$color <- rgb(.5, .5, 0, egam)
+E(g)$width <- egam
+# plot the graph in layout1
+plot(g, layout=layout1)
+
+```
+
+### NETWORK OF TWEETS
+
+We can also build a graph of tweets base on the number of terms that they have in common. Because most tweets contain one or more words from "r", data" and "mining", most tweets are connected with others and the graph of tweets is very crowded. 
+
+To simplify the graph and to find relationship between tweets beyond the above three keywords, were move the three words before building a graph.
+
+```{r}
+# remove "r", "data" and "mining"
+idx <- which(dimnames(termDocMatrix)$Terms %in% c("r", "data", "mining"))
+M <- termDocMatrix[-idx,]
+M[5:10,1:20]
+
+# build a tweet-tweet adjacency matrix
+tweetMatrix <- t(M) %*% M
+tweetMatrix[5:10,1:20]
+
+
+g <- graph.adjacency(tweetMatrix, weighted=T, 
+                     mode = "undirected")
+V(g)$degree <- degree(g)
+g <- simplify(g)
+plot(g)
+
+# set labels of vertices to tweet IDs
+V(g)$label <- V(g)$name
+V(g)$label.cex <- 1
+V(g)$label.color <- rgb(.4, 0, 0, .7)
+V(g)$size <- 2
+V(g)$frame.color <- NA
+plot(g)
+
+barplot(table(V(g)$degree))
+
+```
+
+Next, we have a look at the distribution of degree of vertices. We can see that there are around 40 isolated vertices (with a degree of zero). Note that most of them are caused by the removal of the three keywords, "r", "data" and "mining".
+
+```{r}
+idx <- V(g)$degree == 0
+V(g)$label.color[idx] <- rgb(0, 0, .3, .7)
+plot(g)
+```
+
+```{r}
+# convert tweets to a data frame
+df <- do.call("rbind", lapply(rdmTweets, as.data.frame))
+
+# set labels to the IDs and the first 20 characters of tweets
+V(g)$label[idx] <- paste(V(g)$name[idx], substr(df$text[idx], 1, 20), sep=": ")
+egam <- (log(E(g)$weight)+.2) / max(log(E(g)$weight)+.2)
+E(g)$color <- rgb(.5, .5, 0, egam)
+E(g)$width <- egam
+
+# then run the plot
+set.seed(3152)
+layout2 <- layout.fruchterman.reingold(g)
+plot(g, layout=layout2) 
+
+```
+
+The vertices in crescent are isolated from all others, and next we remove them from graph with function delete.vertices() and re-plot the graph.
+
+
+```{r}
+g2 <- delete.vertices(g, V(g)[degree(g)==0])
+# run plot again
+plot(g2, layout=layout.fruchterman.reingold) 
+```
+
+Similarly, we can also remove edges with low degrees to simplify the graph. Below with function delete.edges(), we remove edges which have weight  of one. After removing edges, some vertices become isolated and are also removed. 
+
+```{r}
+g3 <- delete.edges(g, E(g)[E(g)$weight <= 1])
+g3 <- delete.vertices(g3, V(g3)[degree(g3) == 0])
+plot(g3, layout=layout.fruchterman.reingold) 
 ```
 
