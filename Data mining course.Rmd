@@ -8,7 +8,7 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(rmsfuns)
-load_pkg(c('purrr', 'dplyr', 'arules', "arulesViz", "igraph"))
+load_pkg(c('purrr', 'dplyr', 'arules', "arulesViz", "igraph", "twitteR"))
 ```
 
 # Association Rules
@@ -918,6 +918,7 @@ We can also build a graph of tweets base on the number of terms that they have i
 To simplify the graph and to find relationship between tweets beyond the above three keywords, were move the three words before building a graph.
 
 ```{r}
+load("Materials-Session-4-Social-Network-Analysis-I-Graph-Visualizations/Data Objects/rdmTweets.RData")
 # remove "r", "data" and "mining"
 idx <- which(dimnames(termDocMatrix)$Terms %in% c("r", "data", "mining"))
 M <- termDocMatrix[-idx,]
@@ -987,4 +988,28 @@ g3 <- delete.edges(g, E(g)[E(g)$weight <= 1])
 g3 <- delete.vertices(g3, V(g3)[degree(g3) == 0])
 plot(g3, layout=layout.fruchterman.reingold) 
 ```
+
+There are some groups (or cliques) of tweets. Let's have a look at the group in the middle left of the figure.
+
+```{r}
+df$text[c(7,12,6,9,8,3,4)]
+
+# easier with a for statement
+for (i in c(7,12,6,9,8,3,4)) {
+  cat(paste("[", i, "] ", sep=""))
+  writeLines(strwrap(df$text[i], 76))
+  cat("\n")
+}
+```
+
+We can see that tweets 7, 12, 6, 9, 8, 3, 4 are on parallel Computing with R. We can also see some other groups below:
+  * Tweets 4, 33, 94, 29, 18 and 92: tutorials for R;
+  * Tweets 4, 5, 154 and 71: R packages;
+  * Tweets 126, 128, 108, 136, 127, 116, 114 and 96: time series analysis;
+  * Tweets 112, 129, 119, 105, 108 and 136:  R code examples; and Tweets 27, 24, 22,153, 79, 69, 31, 80, 21, 29, 16, 20, 18, 19 and 30: social network
+  analysis.
+  * Tweet 4 lies between multiple groups, because it contains keywords "parallel computing", "tutorial" and "package".
+
+# Processing twitter data
+
 
