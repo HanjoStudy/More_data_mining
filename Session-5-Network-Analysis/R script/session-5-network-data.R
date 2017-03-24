@@ -197,7 +197,7 @@ summary(faux.mesa.high)       ## summarize the data set
 # the 205 nodes. The edge list summarizes the
 # unordered pairs of nodes that are connected.
 
-# The 205 × 205 symmetric adjacency matrix has 
+# The 205 ? 205 symmetric adjacency matrix has 
 # zeros in the diagonal (as a node cannot be connected
 # to itself), and many zeros and (2)(213) ones as 
 # its off-diagonal elements. The network density
@@ -287,7 +287,7 @@ boxplot(deg~sx)
 # to create a statnet network object from first 
 # principles when given the edge list (or adjacency
 # matrix).
-                                                                                   adjacency matrix).
+
 attributes(faux.mesa.high)
 vv=faux.mesa.high$mel
 edge=matrix(nrow=203,ncol=2)

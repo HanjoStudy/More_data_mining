@@ -823,6 +823,106 @@ plot(bsk.network,
 
 ```
 
+
+## Network data
+
+Network data consist of nodes (also called vertices); such as individuals in a socialnetwork, or companies in a trade network, and edges (the links between them).
+
+The links describe the presence or absence of connections among the nodes. Links can be eitherdirected or undirected. A connection from node x to node y is called directed if y is a direct successor of x; in this case the edge from x to yincludes an arrow that points to y.
+
+A network of nodes and their interconnections can be represented with an adjacency matrix.
+
+Below, we list the adjacency matrix A for a directed graph with three nodes; the relationships among the nodes are expressed with directed arrows. 
+
+The first node points to the second node and to the third node. The second node points to the first node, and the third node points to the second node.
+
+    [0 1 1]
+A = [1 0 0]
+    [0 1 0]
+
+```{r}
+library(igraph)
+m=matrix(nrow=3,ncol=3)
+m
+m[1,1]=0
+m[1,2]=1
+m[1,3]=1
+m[2,1]=1
+m[2,2]=0
+m[2,3]=0
+m[3,1]=0
+m[3,2]=1
+m[3,3]=0
+m
+
+# create the label
+lab=c(1,2,3)
+
+# create the object
+object <- graph.adjacency(m, mode = "directed") 
+set.seed(1)
+plot(object, vertex.label = lab)
+
+
+```
+
+### Century Florence
+
+Early Renaissance Florence was ruled by an oligarchy of powerful families. By the 15th century, the Medicis emerged supreme, and the Medici Bank became the largest in Europe. How did the Medici win? Political ties were established via marriage. 
+
+The adjacency matrix for the 16 most powerful families in Florence shown in the following  includes a one whenever two families were connected  in marriage. This adjacency matrix represents an undirected graph. A graphical representation of the  network, created with the R package igraph, is shown.  The data set analyzed here has been compiled from  extensive data collected by John Padgett. The data  includes information on families who were locked in a struggle for political control of the city of Florence around 1430. Two factions were dominant in this struggle: one revolved around the infamous Medicis, the other around the powerful Strozzis.   
+
+The data can be downloaded from http://vlado.fmf.uni-lj.si/pub/networks/data/ucinet/ucidata.htm#padgett. The papers by Padgett (1994), Padgett and Ansel (1993), Breiger  and Pattison (1986), and Wasserman and Faust (1994)  provide a detailed discussion of this fascinating dataset that has been constructed from historical documents. All we see here is a simple adjacency  matrix of zeros and ones, but not the enormous research effort that must have gone into constructing this matrix. 
+
+```{r}
+library(igraph) ## load the package 
+## read the firenze.csv data
+florence <- as.matrix(read.csv("Session-5-Network-Analysis/data/firenze.csv"))
+# take a look
+florence
+
+# create adjacency matrix:
+marriage <- graph.adjacency(florence, mode="undirected", diag=FALSE)
+## use the help function to understand the options for the graph  
+set.seed(1)
+plot(marriage,layout=layout.fruchterman.reingold,
+     vertex.label=V(marriage)$name,vertex.color="red",
+     vertex.label.color="black", vertex.frame.color=0,
+     vertex.label.cex=1.5)
+```
+
+The presence and absence of network links can be used to measure network connectivity and "social importance." A node's degree in an undirected network is defined as its number of edges to other nodes. Medicis are connected. There are connections (edges) between the Medici and six other families, hence the degree is 6 for the Medici. The Lambertschi family, on the other hand, is connected to only one other family (the Guadagni); the Lambertschi family has degree one
+
+```{r}
+data.frame(V(marriage)$name,degree(marriage))
+```
+
+A deeper measure of network structure is obtained through betweenness. Betweenness is a centrality measure of a node (or vertex) within a graph. Nodes that occur on many shortest paths between other nodes have higher betweenness than those that do not. 
+
+```{r}
+## calculate and plot the shortest paths
+V(marriage)$color <- 8
+E(marriage)$color <- 8
+PtoA <- get.shortest.paths(marriage, from="Peruzzi", to="Acciaiuoli")
+E(marriage, path=PtoA[[1]])$color <- "magenta"
+V(marriage)[PtoA[[1]] ]$color <- "magenta"
+GtoS <- get.shortest.paths(marriage, from="Ginori", to="Strozzi")
+E(marriage, path=GtoS[[1]])$color <- "green"
+V(marriage)[ GtoS[[1]] ]$color <- "green"
+V(marriage)[ "Medici" ]$color <- "cyan"
+
+set.seed(1)
+plot(marriage,  layout=layout.fruchterman.reingold, 
+     vertex.label=V(marriage)$name,
+     vertex.label.color="black", 
+     vertex.frame.color=0,
+     vertex.label.cex=1.5)
+
+data.frame(V(marriage)$name, betweenness(marriage))
+```
+
+Betweenness versus Degree. The Medici have the highest degree (largest number of edges), but only by a factor of 3/2 over the Strozzi's. But the Medici's betweenness (47.5) is five times higher than that of the Strozzi (9.33). Betweenness measures total graph connectivity, rather than counting the next door neighbors.
+
 ## Twitter example
 
 We first build a network of terms based on their co-occurrence in the same tweets, and then build a network of tweets based on the terms shared by them. And lastly, we build a two-mode network composed of both terms and tweets. We also demonstrate some tricks to plot nice network graphs. 
@@ -1011,6 +1111,12 @@ We can see that tweets 7, 12, 6, 9, 8, 3, 4 are on parallel Computing with R. We
   * Tweet 4 lies between multiple groups, because it contains keywords "parallel computing", "tutorial" and "package".
 
 # Processing twitter data
+
+__Do on own speed__
+
+# Character Manipulation
+
+__Do on own speed__
 
 # Time series
 
